@@ -40,7 +40,6 @@ Returns the current ROC-year semester summary.
 {
   "semester": 114,
   "roc_year": 115,
-  "target": 114,
   "latest_available": 114,
   "source_url": "https://www.chihlee.edu.tw/p/404-1000-62149.php",
   "cached": true
@@ -49,8 +48,10 @@ Returns the current ROC-year semester summary.
 
 Notes:
 
-- `target` is `roc_year - 1`.
-- `semester` is `target` if available in source links; otherwise `-1`.
+- `semester` follows academic-year cutover in Taipei time (`UTC+8`):
+  - January to July: use `roc_year - 1`
+  - August to December: use `roc_year`
+- `semester` is that computed value if available in source links; otherwise `-1`.
 
 ---
 
@@ -80,7 +81,7 @@ Returns semester PDF link data.
 `resolved_by`:
 
 - `explicit`: `semester` query param provided
-- `current`: no `semester`, and `roc_year - 1` exists
+- `current`: no `semester`, and `target` exists (`target` uses August cutover in Taipei time)
 - `latest`: no `semester`, fallback to newest available
 
 ### Response 200 (all links)
@@ -117,7 +118,7 @@ Returns extracted CSV for a semester.
 
 If `semester` is omitted, selection follows the same behavior as `/api/v1/cal_link`:
 
-- prefer current (`roc_year - 1`)
+- prefer current (`target`, with August cutover in Taipei time)
 - fallback to latest available
 
 ### Response 200

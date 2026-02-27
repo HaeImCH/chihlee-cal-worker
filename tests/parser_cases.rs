@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 
 use chihlee_cal_worker::models::{ResolvedBy, SemesterLink};
 use chihlee_cal_worker::routes::{
-    resolve_current_semester, resolve_selected_semester, roc_year_from_utc,
+    resolve_current_semester, resolve_selected_semester, roc_year_from_utc, target_semester_from_utc,
 };
 use chihlee_cal_worker::source_scraper::{extract_semester, extract_semester_links};
 
@@ -33,6 +33,15 @@ fn roc_year_conversion_boundaries() {
 
     assert_eq!(roc_year_from_utc(jan), 115);
     assert_eq!(roc_year_from_utc(aug), 115);
+}
+
+#[test]
+fn target_semester_uses_august_cutover_in_taipei() {
+    let before_cutover: DateTime<Utc> = "2026-07-31T15:59:59Z".parse().expect("valid datetime");
+    let at_cutover: DateTime<Utc> = "2026-07-31T16:00:00Z".parse().expect("valid datetime");
+
+    assert_eq!(target_semester_from_utc(before_cutover), 114);
+    assert_eq!(target_semester_from_utc(at_cutover), 115);
 }
 
 #[test]
@@ -67,15 +76,15 @@ fn current_semester_returns_negative_one_when_target_missing() {
 fn cal_link_selection_precedence_and_default_fallback() {
     let links = sample_links();
 
-    let explicit = resolve_selected_semester(Some(113), &links, 115).expect("explicit selection");
+    let explicit = resolve_selected_semester(Some(113), &links, 114).expect("explicit selection");
     assert_eq!(explicit.semester, 113);
     assert_eq!(explicit.resolved_by, ResolvedBy::Explicit);
 
-    let current = resolve_selected_semester(None, &links, 115).expect("current selection");
+    let current = resolve_selected_semester(None, &links, 114).expect("current selection");
     assert_eq!(current.semester, 114);
     assert_eq!(current.resolved_by, ResolvedBy::Current);
 
-    let latest = resolve_selected_semester(None, &links, 113).expect("latest fallback");
+    let latest = resolve_selected_semester(None, &links, 112).expect("latest fallback");
     assert_eq!(latest.semester, 115);
     assert_eq!(latest.resolved_by, ResolvedBy::Latest);
 }

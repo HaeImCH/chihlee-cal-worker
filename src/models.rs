@@ -23,7 +23,6 @@ pub enum ResolvedBy {
 pub struct CurrentSemesterResponse {
     pub semester: i32,
     pub roc_year: i32,
-    pub target: i32,
     pub latest_available: i32,
     pub source_url: String,
     pub cached: bool,

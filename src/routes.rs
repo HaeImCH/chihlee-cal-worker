@@ -58,14 +58,12 @@ async fn csv_route(req: Request, ctx: RouteContext<AppState>) -> Result<Response
 async fn current_semester_response(source_url: &str) -> Result<CurrentSemesterResponse, ApiError> {
     let (links, cached) = load_links(source_url).await?;
     let latest_available = latest_semester(&links)?;
-    let roc_year = current_roc_year_now();
-    let target = roc_year - 1;
+    let (roc_year, target) = current_roc_year_and_target_now();
     let semester = resolve_current_semester(target, &links);
 
     Ok(CurrentSemesterResponse {
         semester,
         roc_year,
-        target,
         latest_available,
         source_url: source_url.to_string(),
         cached,
@@ -89,8 +87,8 @@ async fn cal_link_response(
         }));
     }
 
-    let roc_year = current_roc_year_now();
-    let selected = resolve_selected_semester(semester_param, &links, roc_year)?;
+    let target = current_target_semester_now();
+    let selected = resolve_selected_semester(semester_param, &links, target)?;
     let link = find_link(&links, selected.semester)
         .ok_or_else(|| ApiError::NotFound("requested semester link not found".to_string()))?;
 
@@ -107,8 +105,8 @@ async fn csv_response(req: &Request, source_url: &str) -> Result<Response, ApiEr
     let semester_param = parse_semester_query(&query)?;
     let force = parse_force_query(&query);
     let (links, _) = load_links(source_url).await?;
-    let roc_year = current_roc_year_now();
-    let selected = resolve_selected_semester(semester_param, &links, roc_year)?;
+    let target = current_target_semester_now();
+    let selected = resolve_selected_semester(semester_param, &links, target)?;
     let link = find_link(&links, selected.semester)
         .ok_or_else(|| ApiError::NotFound("requested semester link not found".to_string()))?;
 
@@ -204,12 +202,32 @@ fn parse_force_query(query: &HashMap<String, String>) -> bool {
 }
 
 pub fn roc_year_from_utc(now: DateTime<Utc>) -> i32 {
-    let taipei_now = now + Duration::hours(8);
-    taipei_now.year() - 1911
+    let (roc_year, _) = roc_year_and_target_from_utc(now);
+    roc_year
 }
 
-fn current_roc_year_now() -> i32 {
-    roc_year_from_utc(Utc::now())
+pub fn target_semester_from_utc(now: DateTime<Utc>) -> i32 {
+    let (_, target) = roc_year_and_target_from_utc(now);
+    target
+}
+
+pub fn roc_year_and_target_from_utc(now: DateTime<Utc>) -> (i32, i32) {
+    let taipei_now = now + Duration::hours(8);
+    let roc_year = taipei_now.year() - 1911;
+    let target = if taipei_now.month() >= 8 {
+        roc_year
+    } else {
+        roc_year - 1
+    };
+    (roc_year, target)
+}
+
+fn current_target_semester_now() -> i32 {
+    target_semester_from_utc(Utc::now())
+}
+
+fn current_roc_year_and_target_now() -> (i32, i32) {
+    roc_year_and_target_from_utc(Utc::now())
 }
 
 pub fn resolve_current_semester(target: i32, links: &[SemesterLink]) -> i32 {
@@ -230,7 +248,7 @@ pub fn latest_semester(links: &[SemesterLink]) -> Result<i32, ApiError> {
 pub fn resolve_selected_semester(
     explicit_semester: Option<i32>,
     links: &[SemesterLink],
-    roc_year: i32,
+    target: i32,
 ) -> Result<SelectedSemester, ApiError> {
     if links.is_empty() {
         return Err(ApiError::NotFound(
@@ -245,7 +263,6 @@ pub fn resolve_selected_semester(
         });
     }
 
-    let target = roc_year - 1;
     let current_semester = resolve_current_semester(target, links);
     if current_semester >= 0 {
         return Ok(SelectedSemester {
