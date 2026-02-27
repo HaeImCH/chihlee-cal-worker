@@ -1,0 +1,15 @@
+name = "chihlee-cal-worker"
+main = "build/worker/shim.mjs"
+compatibility_date = "2026-01-11"
+
+[build]
+command = "cargo install -q worker-build && worker-build --release"
+
+[observability]
+enabled = true
+
+[triggers]
+crons = ["0 2 * * *"]
+
+[vars]
+SOURCE_URL = "https://www.chihlee.edu.tw/p/404-1000-62149.php"
